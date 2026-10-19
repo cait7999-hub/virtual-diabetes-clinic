@@ -1,3 +1,4 @@
+import os
 import json
 import urllib.error
 import urllib.request
@@ -22,7 +23,8 @@ def main():
         health = json.load(response)
         assert response.status == 200
         assert health["status"] == "ok"
-        assert health["model_version"] == "v0.2"
+        expected_version = os.getenv("MODEL_VERSION", "v0.2")
+assert health["model_version"] == expected_version
 
     # Example patient
     patient = {
