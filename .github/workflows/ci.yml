@@ -25,7 +25,7 @@ jobs:
       - name: Train baseline model
         run: python train.py
 
-              - name: Upload trained model
+      - name: Upload trained model
         uses: actions/upload-artifact@v4
         with:
           name: diabetes-model
