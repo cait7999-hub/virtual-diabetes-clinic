@@ -22,86 +22,43 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Train baseline model
+      - name: Train diabetes models
         run: python train.py
 
-      - name: Upload trained model
+      - name: Upload trained model and metrics
         uses: actions/upload-artifact@v4
         with:
           name: diabetes-model
-          path: models/model.joblib
+          path: |
+            models/model.joblib
+            models/metrics.json
           if-no-files-found: error
+
       - name: Build Docker image
-        run: docker build -t diabetes-api:v0.1 .
+        run: docker build -t diabetes-api:ci .
 
-              - name: Test API in Docker
+      - name: Test API in Docker
         run: |
-          docker run -d --name diabetes-test -p 8080:80 diabetes-api:v0.1
+          docker run -d --name diabetes-test -p 8080:80 diabetes-api:ci
 
-          python - <<'PY'
-          import json
-          import time
-          import urllib.error
-          import urllib.request
+          echo "Waiting for API to start..."
 
-          base = "http://localhost:8080"
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://localhost:8080/health > /dev/null; then
+              echo "API is ready!"
+              break
+            fi
+            sleep 2
+          done
 
-          # Wait for the API to start
-          for attempt in range(30):
-              try:
-                  with urllib.request.urlopen(base + "/health", timeout=2) as response:
-                      health = json.load(response)
-                      assert response.status == 200
-                      assert health["status"] == "ok"
-                      assert health["model_version"] == "v0.1"
-                  break
-              except (urllib.error.URLError, TimeoutError):
-                  time.sleep(1)
-          else:
-              raise AssertionError("API failed to start")
+          python tests/test_api.py
 
-          patient = {
-              "age": 0.02,
-              "sex": -0.044,
-              "bmi": 0.06,
-              "bp": -0.03,
-              "s1": -0.02,
-              "s2": 0.03,
-              "s3": -0.02,
-              "s4": 0.02,
-              "s5": 0.02,
-              "s6": -0.001
-          }
-
-          def make_request(data):
-              request = urllib.request.Request(
-                  base + "/predict",
-                  data=json.dumps(data).encode("utf-8"),
-                  headers={"Content-Type": "application/json"},
-                  method="POST"
-              )
-              return urllib.request.urlopen(request, timeout=5)
-
-          # Verify prediction
-          with make_request(patient) as response:
-              result = json.load(response)
-              assert response.status == 200
-              assert isinstance(result["prediction"], (int, float))
-
-          # Verify invalid input returns HTTP 422
-          del patient["s6"]
-
-          try:
-              make_request(patient)
-              raise AssertionError("Expected HTTP 422")
-          except urllib.error.HTTPError as error:
-              assert error.code == 422
-              details = json.load(error)
-              assert "s6" in str(details)
-
-          print("All API acceptance tests passed!")
-          PY
-
-      - name: Show container logs
+      - name: Show container logs on failure
         if: failure()
-        run: docker logs diabetes-test
+        run: |
+          docker logs diabetes-test || true
+
+      - name: Stop test container
+        if: always()
+        run: |
+          docker rm -f diabetes-test || true
