@@ -13,7 +13,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project files
 COPY . .
 
-# Train model inside Docker image
+# Select the model version during Docker build
+ARG MODEL_VERSION=v0.2
+ENV MODEL_VERSION=${MODEL_VERSION}
+
+# Train and save the selected model
 RUN python train.py
 
 # Expose API port
