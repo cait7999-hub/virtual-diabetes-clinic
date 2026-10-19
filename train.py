@@ -1,3 +1,4 @@
+import os
 import json
 import joblib
 from pathlib import Path
@@ -155,19 +156,24 @@ else:
     print("Result: Same test RMSE as baseline")
 
 
-# ==========================================
-# 6. Save Best Model
-# ==========================================
+# ======================================
+# 6. Save Model Based on Version
+# ======================================
+
+model_version = os.getenv("MODEL_VERSION", "v0.2")
+
+if model_version == "v0.1":
+    model_to_save = baseline
+elif model_version == "v0.2":
+    model_to_save = best_model
+else:
+    raise ValueError(f"Unsupported model version: {model_version}")
 
 Path("models").mkdir(exist_ok=True)
 
-joblib.dump(
-    best_model,
-    "models/model.joblib"
-)
+joblib.dump(model_to_save, "models/model.joblib")
 
-print("Model saved successfully!")
-
+print(f"Model saved for {model_version}!")
 
 # ==========================================
 # 7. Save Evaluation Metrics
