@@ -1,3 +1,6 @@
+import joblib
+from pathlib import Path
+
 from sklearn.datasets import load_diabetes
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
@@ -32,3 +35,11 @@ predictions = model.predict(X_test)
 rmse = root_mean_squared_error(y_test, predictions)
 
 print(f"Baseline RMSE: {rmse:.2f}")
+
+# Create a folder for the trained model
+Path("models").mkdir(exist_ok=True)
+
+# Save the trained model
+joblib.dump(model, "models/model.joblib")
+
+print("Model saved successfully!")
