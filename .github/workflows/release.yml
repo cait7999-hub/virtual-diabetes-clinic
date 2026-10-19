@@ -33,9 +33,27 @@ jobs:
 
       - name: Container smoke test
         run: |
-          docker run --rm --entrypoint python \
-            "$IMAGE:${GITHUB_REF_NAME}" \
-            -c "import sklearn; print('Smoke test passed')"
+          docker run -d --name release-test -p 8080:80 \
+            "$IMAGE:${GITHUB_REF_NAME}"
+
+          echo "Waiting for API..."
+
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://localhost:8080/health > /dev/null; then
+              break
+            fi
+            sleep 2
+          done
+
+          MODEL_VERSION="${GITHUB_REF_NAME}" python tests/test_api.py
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs release-test || true
+
+      - name: Stop test container
+        if: always()
+        run: docker rm -f release-test || true
 
       - name: Login to GHCR
         uses: docker/login-action@v3
