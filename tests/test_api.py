@@ -22,7 +22,7 @@ def main():
         health = json.load(response)
         assert response.status == 200
         assert health["status"] == "ok"
-        assert health["model_version"] == "v0.1"
+        assert health["model_version"] == "v0.2"
 
     # Example patient
     patient = {
