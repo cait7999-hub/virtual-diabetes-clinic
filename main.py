@@ -1,14 +1,18 @@
+import os
+
+import joblib
+import pandas as pd
 from fastapi import FastAPI
 from pydantic import BaseModel, ConfigDict
-import pandas as pd
-import joblib
 
 app = FastAPI(title="Virtual Diabetes Clinic API")
 
-# Load trained model
+MODEL_VERSION = os.getenv("MODEL_VERSION", "v0.1")
+
+# Load the trained model
 model = joblib.load("models/model.joblib")
 
-# Define patient input
+
 class Patient(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -23,9 +27,14 @@ class Patient(BaseModel):
     s5: float
     s6: float
 
+
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "model_version": MODEL_VERSION
+    }
+
 
 @app.post("/predict")
 def predict(patient: Patient):
@@ -33,6 +42,7 @@ def predict(patient: Patient):
     prediction = model.predict(data)[0]
 
     return {
-        "predicted_progression": float(prediction)
+        "prediction": float(prediction)
+    }
     }
 
