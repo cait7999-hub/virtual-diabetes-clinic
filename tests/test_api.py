@@ -24,7 +24,7 @@ def main():
         assert response.status == 200
         assert health["status"] == "ok"
         expected_version = os.getenv("MODEL_VERSION", "v0.2")
-assert health["model_version"] == expected_version
+        assert health["model_version"] == expected_version
 
     # Example patient
     patient = {
