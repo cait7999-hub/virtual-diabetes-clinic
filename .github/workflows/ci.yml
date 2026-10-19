@@ -24,3 +24,10 @@ jobs:
 
       - name: Train baseline model
         run: python train.py
+
+              - name: Upload trained model
+        uses: actions/upload-artifact@v4
+        with:
+          name: diabetes-model
+          path: models/model.joblib
+          if-no-files-found: error
