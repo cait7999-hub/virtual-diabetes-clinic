@@ -44,5 +44,5 @@ def predict(patient: Patient):
     return {
         "prediction": float(prediction)
     }
-    }
+    
 
