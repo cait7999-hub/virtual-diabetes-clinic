@@ -31,3 +31,5 @@ jobs:
           name: diabetes-model
           path: models/model.joblib
           if-no-files-found: error
+      - name: Build Docker image
+        run: docker build -t diabetes-api:v0.1 .
