@@ -1,27 +1,20 @@
-# Use Python 3.11
 FROM python:3.11-slim
 
-# Set working directory
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 
-# Copy dependencies
 COPY requirements.txt .
-
-# Install Python packages
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project files
-COPY . .
+COPY train.py main.py ./
 
-# Select the model version during Docker build
+# Model version is chosen at build time and baked into the image
 ARG MODEL_VERSION=v0.2
 ENV MODEL_VERSION=${MODEL_VERSION}
-
-# Train and save the selected model
 RUN python train.py
 
-# Expose API port
 EXPOSE 80
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:80/health')" || exit 1
 
-# Start FastAPI application
 CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
