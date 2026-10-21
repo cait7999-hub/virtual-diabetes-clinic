@@ -13,7 +13,10 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import root_mean_squared_error
+import numpy as np
+from sklearn.metrics import precision_score, recall_score, root_mean_squared_error
+
+np.random.seed(42)
 
 
 # ==========================================
@@ -176,18 +179,48 @@ joblib.dump(model_to_save, "models/model.joblib")
 print(f"Model saved for {model_version}!")
 
 # ==========================================
-# 7. Save Evaluation Metrics
+# 7. High-risk flag evaluation (threshold = 75th percentile of y_train)
 # ==========================================
 
+threshold = float(np.percentile(y_train, 75))
+y_true_flag = (y_test >= threshold).astype(int)
+
+
+def flag_metrics(preds):
+    flag = (preds >= threshold).astype(int)
+    return {
+        "precision": float(precision_score(y_true_flag, flag, zero_division=0)),
+        "recall": float(recall_score(y_true_flag, flag, zero_division=0)),
+    }
+
+
+saved_preds = model_to_save.predict(X_test)
+
 metrics = {
-    "baseline_rmse": float(baseline_rmse),
-    "selected_model": best_name,
-    "v02_rmse": float(final_rmse),
-    "rmse_delta": float(rmse_delta),
-    "best_params": best_params
+    "model_version": model_version,
+    "model": "LinearRegression" if model_version == "v0.1" else best_name,
+    "test_rmse": float(root_mean_squared_error(y_test, saved_preds)),
+    "high_risk_threshold": threshold,
+    "high_risk_flag": flag_metrics(saved_preds),
+    "comparison": {
+        "v0.1": {
+            "test_rmse": float(baseline_rmse),
+            "cv_rmse": float(baseline_cv_rmse),
+            **flag_metrics(baseline_predictions),
+        },
+        "v0.2": {
+            "model": best_name,
+            "best_params": best_params,
+            "test_rmse": float(final_rmse),
+            "cv_rmse": float(best_cv_rmse),
+            **flag_metrics(final_predictions),
+        },
+        "rmse_delta": float(rmse_delta),
+    },
 }
 
 with open("models/metrics.json", "w") as f:
     json.dump(metrics, f, indent=2)
 
+print(json.dumps(metrics, indent=2))
 print("Metrics saved successfully!")
