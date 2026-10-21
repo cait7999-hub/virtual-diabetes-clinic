@@ -1,20 +1,16 @@
-import os
 import json
-import joblib
+import os
 from pathlib import Path
 
+import joblib
+import numpy as np
 from sklearn.datasets import load_diabetes
-from sklearn.model_selection import (
-    train_test_split,
-    GridSearchCV,
-    cross_val_score
-)
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.metrics import precision_score, recall_score, root_mean_squared_error
+from sklearn.model_selection import GridSearchCV, cross_val_score, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LinearRegression, Ridge
-from sklearn.ensemble import RandomForestRegressor
-import numpy as np
-from sklearn.metrics import precision_score, recall_score, root_mean_squared_error
 
 np.random.seed(42)
 
