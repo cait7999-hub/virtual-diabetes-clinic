@@ -1,4 +1,9 @@
-pytest==8.3.4
-httpx==0.28.1
-ruff==0.6.9
+fastapi
+uvicorn
+pydantic
+scikit-learn
+numpy
+pandas
+joblib
+requests
 
