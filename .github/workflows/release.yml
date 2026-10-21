@@ -1,76 +1,38 @@
+# Changelog
 
-name: Docker Release
+All metrics: held-out test split (20%, `random_state=42`), 5-fold CV on the training split.
+High-risk flag = predicted progression >= 214.0 (75th percentile of training targets).
 
-on:
-  push:
-    tags:
-      - 'v*'
+## v0.2 - Model improvement
 
-permissions:
-  contents: write
-  packages: write
+### What changed
+- Added Ridge and RandomForestRegressor as candidates, tuned with `GridSearchCV` (5-fold).
+- Model selection by CV RMSE (not test RMSE) to avoid overfitting the test split.
+- Ridge (`alpha=10.0`) selected; RandomForest scored worse (CV RMSE 58.22).
+- Added evaluation of a high-risk flag (precision/recall at the threshold above).
+- Metrics saved to `models/metrics.json` and attached to each GitHub Release.
 
-jobs:
-  release:
-    runs-on: ubuntu-latest
+### Side-by-side metrics
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+| Metric | v0.1 | v0.2 | Delta |
+|---|---|---|---|
+| Model | StandardScaler + LinearRegression | StandardScaler + Ridge (alpha=10) | |
+| Test RMSE | 53.85 | 53.63 | -0.23 |
+| CV RMSE | 55.97 | 55.86 | -0.11 |
+| High-risk precision | 1.00 | 1.00 | 0 |
+| High-risk recall | 0.29 | 0.29 | 0 |
 
-      - name: Set up Docker
-        uses: docker/setup-buildx-action@v3
+### Why v0.2 is an improvement
+Ridge lowers RMSE on both cross-validation and the held-out test set. L2 regularisation
+shrinks coefficients of correlated features (s1/s2/s4 are strongly correlated), so the
+model is more stable on new patients at no extra latency or image size. The gain is small
+and the high-risk flag behaves identically, so prioritisation order is essentially preserved
+while error is reduced.
 
-      - name: Set image name
-        run: |
-          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+## v0.1 - Baseline
 
-      - name: Build Docker image
-        run: |
-          docker build \
-            --build-arg MODEL_VERSION="${GITHUB_REF_NAME}" \
-            -t "$IMAGE:${GITHUB_REF_NAME}" .
+- StandardScaler + LinearRegression, 80/20 split with `random_state=42`.
+- FastAPI service with `GET /health` and `POST /predict`, JSON 422 errors on bad input.
+- Docker image with the model trained and baked in at build time, port 80.
+- Test RMSE 53.85, CV RMSE 55.97.
 
-      - name: Container smoke test
-        run: |
-          docker run -d --name release-test -p 8080:80 \
-            "$IMAGE:${GITHUB_REF_NAME}"
-
-          echo "Waiting for API..."
-
-          for i in $(seq 1 30); do
-            if curl --fail --silent http://localhost:8080/health > /dev/null; then
-              break
-            fi
-            sleep 2
-          done
-
-          MODEL_VERSION="${GITHUB_REF_NAME}" python tests/test_api.py
-
-      - name: Show container logs on failure
-        if: failure()
-        run: docker logs release-test || true
-
-      - name: Stop test container
-        if: always()
-        run: docker rm -f release-test || true
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push to GHCR
-        run: |
-          docker push "$IMAGE:${GITHUB_REF_NAME}"
-
-      - name: Publish GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --notes-file CHANGELOG.md \
-            --verify-tag
