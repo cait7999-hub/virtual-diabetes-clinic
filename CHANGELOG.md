@@ -1,31 +1,37 @@
-/ CHANGELOG
+# Changelog
 
-/ v0.2 - Model Improvement
+All metrics: held-out test split (20%, `random_state=42`), 5-fold CV on the training split.
+High-risk flag = predicted progression >= 214.0 (75th percentile of training targets).
 
-/Changes
-- Added Ridge Regression and RandomForestRegressor as candidate models.
-- Used 5-fold cross-validation for model selection.
-- Selected Ridge Regression as the best-performing model based on cross-validation.
-- Maintained the same train/test split as v0.1 (`random_state=42`).
-- Saved the selected model to `models/model.joblib`.
-- Saved evaluation results to `models/metrics.json`.
+# v0.2 - Model improvement
 
-/Performance Comparison
+# What changed
+- Added Ridge and RandomForestRegressor as candidates, tuned with `GridSearchCV` (5-fold).
+- Model selection by CV RMSE (not test RMSE) to avoid overfitting the test split.
+- Ridge (`alpha=10.0`) selected; RandomForest scored worse (CV RMSE 58.22).
+- Added evaluation of a high-risk flag (precision/recall at the threshold above).
+- Metrics saved to `models/metrics.json` and attached to each GitHub Release.
 
-| Metric | v0.1 | v0.2 |
-|---|---|---|
-| Model | LinearRegression | Ridge Regression |
-| Test RMSE | 53.85 | 53.63 |
-| RMSE change | Baseline | -0.23 (approximately 0.4% improvement) |
+# Side-by-side metrics
 
-/Results
+| Metric | v0.1 | v0.2 | Delta |
+|---|---|---|---|
+| Model | StandardScaler + LinearRegression | StandardScaler + Ridge (alpha=10) | |
+| Test RMSE | 53.85 | 53.63 | -0.23 |
+| CV RMSE | 55.97 | 55.86 | -0.11 |
+| High-risk precision | 1.00 | 1.00 | 0 |
+| High-risk recall | 0.29 | 0.29 | 0 |
 
-The v0.2 Ridge Regression model achieved a test RMSE of 53.63, compared with 53.85 for the v0.1 LinearRegression baseline.
+# Why v0.2 is an improvement
+Ridge lowers RMSE on both cross-validation and the held-out test set. L2 regularisation
+shrinks coefficients of correlated features (s1/s2/s4 are strongly correlated), so the
+model is more stable on new patients at no extra latency or image size. The gain is small
+and the high-risk flag behaves identically, so prioritisation order is essentially preserved
+while error is reduced.
 
-The lower RMSE indicates a small improvement in prediction accuracy on the held-out test set.
+# v0.1 - Baseline
 
-### Conclusion
-
-Iteration 2 successfully introduced alternative regression models and improved the baseline performance. The service continues to return a continuous disease progression score rather than a binary high-risk classification.
-
-No probability calibration or precision/recall evaluation was required because no binary risk flag was introduced.
+- StandardScaler + LinearRegression, 80/20 split with `random_state=42`.
+- FastAPI service with `GET /health` and `POST /predict`, JSON 422 errors on bad input.
+- Docker image with the model trained and baked in at build time, port 80.
+- Test RMSE 53.85, CV RMSE 55.97.
